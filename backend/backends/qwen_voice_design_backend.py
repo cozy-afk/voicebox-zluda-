@@ -26,6 +26,7 @@ from . import TTSBackend, LANGUAGE_CODE_TO_NAME
 from .base import (
     is_model_cached,
     get_torch_device,
+    get_gpu_inference_dtype,
     combine_voice_prompts as _combine_voice_prompts,
     model_load_progress,
 )
@@ -121,7 +122,7 @@ class QwenVoiceDesignBackend:
                 self.model = Qwen3TTSModel.from_pretrained(
                     model_path,
                     device_map=self.device,
-                    torch_dtype=torch.bfloat16,
+                    torch_dtype=get_gpu_inference_dtype(self.device),
                 )
 
         self._current_model_size = model_size
