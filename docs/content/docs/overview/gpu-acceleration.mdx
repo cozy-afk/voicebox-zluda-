@@ -131,6 +131,63 @@ Common values:
 - `11.0.0` — RX 7000 series (RDNA 3)
 - `9.0.0` — Older Vega cards
 
+### RX 6800 XT / RDNA2 notes
+
+RDNA2 (gfx1030) has no native bfloat16, so Voicebox automatically loads
+Qwen models in float32 on these cards (checked via
+`torch.cuda.is_bf16_supported()`, which works through the HIP
+abstraction). This costs VRAM versus bf16 — prefer Qwen3-TTS **0.6B**
+first, then try 1.7B. Override with `VOICEBOX_DTYPE=bf16|fp16|fp32` if
+you know your card handles it.
+
+Diagnose any AMD setup without starting the server:
+
+```bash
+python3 scripts/check_amd.py
+```
+
+If `just setup-python` installed CPU-only torch (common under WSL2, where
+`/dev/kfd` is invisible to auto-detect), force the ROCm wheels:
+
+```bash
+VOICEBOX_TORCH_INDEX=https://download.pytorch.org/whl/rocm6.3 just setup-python
+```
+
+### Native Windows (recommended for RX 6000 series)
+
+Run the backend directly on Windows — no WSL, no Docker. The ROCm
+PyTorch wheels for Windows (`backend/requirements-rocm.txt`) and the
+dtype fallback above are what make the 6800 XT work here.
+
+```powershell
+# Prerequisites: Python 3.12 from python.org, current Adrenalin driver
+git clone https://github.com/cozy-afk/voicebox-zluda-
+cd voicebox-zluda-
+python -m venv backend\venv
+backend\venv\Scripts\Activate.ps1
+pip install -r backend\requirements-rocm.txt
+pip install -r backend\requirements.txt
+$env:HSA_OVERRIDE_GFX_VERSION = "10.3.0"   # only if detection fails
+python -m backend.main --host 127.0.0.1 --port 17493
+```
+
+Sanity check before starting (works on Windows too):
+
+```powershell
+python scripts\check_amd.py
+```
+
+Expect `cuda_available True`, your RX 6800 XT as device name, and
+`qwen dtype on cuda: torch.float32`.
+
+### WSL2 — not supported for RDNA2
+
+AMD's official WSL2 support matrix (ROCm 7.2.1) lists only RX 7000/9000
+series and PRO cards — no RX 6000 series. An upstream request for RDNA2
+on WSL2 (ROCm/legacy-rocm-build#4187) is unanswered. In WSL2 your 6800 XT
+exposes no `/dev/kfd`, so ROCm torch sees CPU only. Use native Windows
+above; do not spend time on WSL or Docker Desktop (same WSL2 backend).
+
 ## GPU Compatibility Warnings
 
 Voicebox 0.4 added a runtime check that compares your GPU's compute capability against the architectures the bundled PyTorch was compiled for. If they don't match, you'll see:

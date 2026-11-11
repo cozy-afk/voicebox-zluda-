@@ -97,6 +97,13 @@ setup-python:
     fi
     echo "Installing Python dependencies..."
     "{{ python }}" -m pip install --upgrade pip -q
+    # Manual override for AMD/WSL setups where auto-detect fails (e.g. WSL2
+    # has no /dev/kfd, so the ROCm branch below never triggers):
+    #   VOICEBOX_TORCH_INDEX=https://download.pytorch.org/whl/rocm6.3 just setup-python
+    if [ -n "${VOICEBOX_TORCH_INDEX:-}" ]; then
+        echo "VOICEBOX_TORCH_INDEX set — installing torch from ${VOICEBOX_TORCH_INDEX}..."
+        "{{ python }}" -m pip install torch torchaudio --index-url "${VOICEBOX_TORCH_INDEX}"
+    fi
     if [ "$(uname)" = "Linux" ]; then
         torch_index=""
         if [ -e /proc/driver/nvidia/version ] || [ -d /sys/module/nvidia ]; then
@@ -113,7 +120,7 @@ setup-python:
             echo "Detected AMD GPU — installing ROCm PyTorch (rocm${rocm_ver})..."
             torch_index="https://download.pytorch.org/whl/rocm${rocm_ver}"
         fi
-        if [ -n "$torch_index" ]; then
+        if [ -z "${VOICEBOX_TORCH_INDEX:-}" ] && [ -n "$torch_index" ]; then
             "{{ python }}" -m pip install torch torchaudio --index-url "$torch_index"
         fi
     fi

@@ -18,6 +18,7 @@ from . import TTSBackend, STTBackend, LANGUAGE_CODE_TO_NAME, WHISPER_HF_REPOS
 from .base import (
     is_model_cached,
     get_torch_device,
+    get_gpu_inference_dtype,
     empty_device_cache,
     manual_seed,
     combine_voice_prompts as _combine_voice_prompts,
@@ -121,7 +122,7 @@ class PyTorchTTSBackend:
                     model_path,
                     cache_dir=tts_cache_dir,
                     device_map=self.device,
-                    torch_dtype=torch.bfloat16,
+                    torch_dtype=get_gpu_inference_dtype(self.device),
                 )
 
         self._current_model_size = model_size

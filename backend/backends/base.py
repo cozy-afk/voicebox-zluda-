@@ -161,6 +161,45 @@ def get_torch_device(
     return "cpu"
 
 
+def get_gpu_inference_dtype(device: str):
+    """Pick a safe model dtype for the given torch device.
+
+    bfloat16 halves VRAM vs float32 but needs hardware support (NVIDIA
+    Ampere+, RDNA3+/CDNA). RDNA2 cards like the RX 6800 XT (gfx1030)
+    report False from is_bf16_supported() and fail or crawl on bf16
+    weights — fall back to float32 there. CPU always uses float32.
+
+    Honors VOICEBOX_DTYPE (bf16/fp16/fp32) when set, e.g. to force a
+    lower-VRAM dtype on a card that supports it.
+    """
+    import torch
+
+    override = os.environ.get("VOICEBOX_DTYPE", "").strip().lower()
+    if override in ("bf16", "bfloat16"):
+        return torch.bfloat16
+    if override in ("fp16", "float16"):
+        return torch.float16
+    if override in ("fp32", "float32"):
+        return torch.float32
+
+    if device == "cpu":
+        return torch.float32
+    if device == "cuda":
+        # Works for ROCm/HIP too: torch.cuda.is_bf16_supported() is
+        # implemented via the HIP abstraction. RDNA2 (gfx1030, e.g.
+        # RX 6800 XT) has no native bf16 and reports False here.
+        try:
+            if torch.cuda.is_bf16_supported():
+                return torch.bfloat16
+        except Exception:
+            pass
+        return torch.float32
+    if device == "xpu":
+        # Intel Arc (Alchemist+) supports bf16 natively.
+        return torch.bfloat16
+    return torch.float32
+
+
 def check_cuda_compatibility() -> tuple[bool, str | None]:
     """Check if the installed PyTorch supports the current GPU's compute capability.
 
