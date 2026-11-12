@@ -1,4 +1,9 @@
---extra-index-url https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/
+# A plain directory listing, not a PEP 503 index, so pip needs
+# --find-links (an --extra-index-url never resolves anything here).
+# NOTE: ROCm 7.x Windows wheels do not support RDNA2/gfx10xx cards
+# (e.g. RX 6800 XT) - AMD's 7.2 Windows table lists them unsupported.
+# Those cards want the 6.4.x stack instead.
+--find-links https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/
 torch==2.9.1+rocm7.2.1
 torchaudio==2.9.1+rocm7.2.1
 torchvision==0.24.1+rocm7.2.1
